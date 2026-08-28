@@ -3,6 +3,9 @@ package com.finance.dashboard
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.inputmethod.InputMethodManager
+import android.content.Context
 import android.os.Bundle
 import android.view.*
 import android.webkit.*
@@ -20,6 +23,7 @@ class MainActivity : android.app.Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         root = FrameLayout(this)
+        root.fitsSystemWindows = false
         setContentView(root)
         serverUrl = prefs.getString("server_url", null)
         if (serverUrl.isNullOrBlank()) showSettings() else showWeb(serverUrl!!)
@@ -33,8 +37,13 @@ class MainActivity : android.app.Activity() {
     }
 
     private fun showSettings() {
-        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 64, 48, 48) }
-        val title = TextView(this).apply { text = "金融工作台\n服务器设置"; textSize = 26f; setTextColor(Color.rgb(20,60,110)); setPadding(0,0,0,32) }
+        val scroll = ScrollView(this)
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(32), dp(20), dp(24))
+        }
+        scroll.addView(box)
+        val title = TextView(this).apply { text = "金融工作台\n服务器设置"; textSize = 22f; setTextColor(Color.rgb(20,60,110)); setPadding(0,0,0,32) }
         val ip = EditText(this).apply { hint = "服务器 IP，例如 192.168.1.100"; setText(serverUrl?.replace(Regex("https?://|:[0-9]+$"), "") ?: "") }
         val port = EditText(this).apply { hint = "端口，例如 8000"; inputType = 2; setText(serverUrl?.substringAfterLast(':') ?: "8000") }
         val status = TextView(this).apply { setPadding(0,24,0,24); text = "请输入运行金融工作台后端的局域网 IP 和端口" }
@@ -54,16 +63,25 @@ class MainActivity : android.app.Activity() {
             prefs.edit().putString("server_url", url).apply(); serverUrl=url; showWeb(url)
         }
         box.addView(title); box.addView(ip); box.addView(port); box.addView(status); box.addView(test); box.addView(save)
-        root.removeAllViews(); root.addView(box)
+        root.removeAllViews(); root.addView(scroll)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun showWeb(url: String) {
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true; settings.domStorageEnabled = true; settings.databaseEnabled = true
-            settings.mediaPlaybackRequiresUserGesture = false; settings.loadWithOverviewMode = true; settings.useWideViewPort = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            settings.loadWithOverviewMode = false
+            settings.useWideViewPort = false
+            settings.builtInZoomControls = false
+            settings.displayZoomControls = false
+            settings.textZoom = 100
+            settings.javaScriptCanOpenWindowsAutomatically = true
             webViewClient = object : WebViewClient() { override fun shouldOverrideUrlLoading(v: WebView, r: WebResourceRequest): Boolean { v.loadUrl(r.url.toString()); return true } }
             webChromeClient = WebChromeClient()
+            setBackgroundColor(Color.rgb(13,17,23))
+            isVerticalScrollBarEnabled = false
+            isHorizontalScrollBarEnabled = false
             loadUrl(url)
         }
         root.removeAllViews(); root.addView(webView)
@@ -71,5 +89,8 @@ class MainActivity : android.app.Activity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean { menu.add("服务器设置").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER); return true }
     override fun onOptionsItemSelected(item: MenuItem): Boolean { if (item.title == "服务器设置") { showSettings(); return true }; return super.onOptionsItemSelected(item) }
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
+
     override fun onBackPressed() { if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed() }
 }
